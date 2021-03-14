@@ -23,10 +23,10 @@ const pgmName = "fpp"
 const pgmDesc = "Find Program Path: Iterate through the PATH environment variable to search for the given programs"
 const pgmURL = "https://github.com/jftuga/fpp"
 const pgmLicense = "https://github.com/jftuga/fpp/blob/main/LICENSE"
-const pgmVersion = "1.0.0"
+const pgmVersion = "1.0.1"
 
 // search for these executable file extensions
-var allExtentions = [...]string{"bat", "cmd", "com", "cpl", "exe", "inf", "ini", "job", "lnk", "msc", "msi", "msp", "mst",
+var allExtensions = [...]string{"bat", "cmd", "com", "cpl", "exe", "inf", "ini", "job", "lnk", "msc", "msi", "msp", "mst",
 	"paf", "pif", "pl", "ps1", "py", "reg", "rgs", "scr", "sct", "shb", "shs", "u3p", "rb", "sh",
 	"vb", "vbe", "vbs", "vbscript", "ws", "wsf", "wsh"}
 
@@ -49,7 +49,7 @@ func showUsage() {
 
 // getAllPaths - return a map with each key=position within the PATH env var; val=individual path
 // also check for duplicate paths and paths that do not exist in the PATH env var
-func getAllPaths() map[int]string {
+func getAllPaths(shouldContinue bool) map[int]string {
 	paths := make(map[int]string)
 	sep := string(os.PathListSeparator)
 	osPath := os.Getenv("PATH")
@@ -61,16 +61,23 @@ func getAllPaths() map[int]string {
 	dup := make(map[string]bool)
 
 	for i, p := range strings.Split(osPath, sep) {
+		if 0 == len(p) {
+			continue
+		}
 		if _, found := dup[strings.ToLower(p)]; found {
 			fmt.Fprintf(os.Stderr, "WARNING: '%s' appears multiple times in PATH\n", p)
-			continue
+			if shouldContinue {
+				continue
+			}
 		}
 		if stat, err := os.Stat(p); err == nil && stat.IsDir() {
 			paths[i] = p
 			dup[strings.ToLower(p)] = true
 		} else {
 			fmt.Fprintf(os.Stderr, "WARNING: '%s' does not exist or is not a directory\n", p)
-			continue
+			if shouldContinue {
+				continue
+			}
 		}
 	}
 	return paths
@@ -84,17 +91,20 @@ func checkFile(fullPath string) bool {
 	return false
 }
 
-// searchPath - search 'path' for all programs in 'allProgs'
+// searchPath - search 'path' for all programs in 'allPrograms'
 // return an slice of all found programs within that single 'path'
-func searchPath(path string, allProgs []string) []string {
+func searchPath(path string, allPrograms []string) []string {
 	var results []string
-	for _, pgm := range allProgs {
+	if 0 == len(path) {
+		return results
+	}
+	for _, pgm := range allPrograms {
 		fullPath := filepath.Join(path, pgm)
 		if checkFile(fullPath) {
 			results = append(results, fullPath)
 		}
 
-		for _, ext := range allExtentions {
+		for _, ext := range allExtensions {
 			fullPathWithExt := filepath.Join(path, pgm+"."+ext)
 			if checkFile(fullPathWithExt) {
 				results = append(results, fullPathWithExt)
@@ -127,11 +137,8 @@ func main() {
 		os.Exit(0)
 	}
 
-	// a slice containing each individual path in PATH env var
-	allPaths := getAllPaths()
-
 	if *argsShowPaths {
-		showPaths(allPaths)
+		showPaths(getAllPaths(false))
 		os.Exit(0)
 	}
 
@@ -142,6 +149,9 @@ func main() {
 		os.Exit(1)
 	}
 
+	// a slice containing each individual path in PATH env var
+	allPaths := getAllPaths(true)
+
 	// add a wait item - one for each item in allPaths
 	var wg sync.WaitGroup
 	wg.Add(len(allPaths))
@@ -149,12 +159,14 @@ func main() {
 	// each index refers to its position in allPath
 	// a result[i] can all be empty, which means no program was found in that directory
 	var results []string
-	results = make([]string, len(allPaths))
+	results = make([]string, len(allPaths)+1)
 
 	for i, path := range allPaths {
 		go func(path string, i int, results []string) {
 			found := searchPath(path, args)
+
 			if len(found) > 0 {
+				//fmt.Println("found:", path, found)
 				for _, f := range found {
 					results[i] += fmt.Sprintf("%s\n", f)
 				}
