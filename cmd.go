@@ -23,7 +23,7 @@ const pgmName = "fpp"
 const pgmDesc = "Find Program Path: Iterate through the PATH environment variable to search for the given programs"
 const pgmURL = "https://github.com/jftuga/fpp"
 const pgmLicense = "https://github.com/jftuga/fpp/blob/main/LICENSE"
-const pgmVersion = "1.0.1"
+const pgmVersion = "1.0.2"
 
 // search for these executable file extensions
 var allExtensions = [...]string{"bat", "cmd", "com", "cpl", "exe", "inf", "ini", "job", "lnk", "msc", "msi", "msp", "mst",
@@ -92,7 +92,7 @@ func checkFile(fullPath string) bool {
 }
 
 // searchPath - search 'path' for all programs in 'allPrograms'
-// return an slice of all found programs within that single 'path'
+// return a slice of all found programs within that single 'path'
 func searchPath(path string, allPrograms []string) []string {
 	var results []string
 	if 0 == len(path) {
@@ -159,7 +159,7 @@ func main() {
 	// each index refers to its position in allPath
 	// a result[i] can all be empty, which means no program was found in that directory
 	var results []string
-	results = make([]string, len(allPaths)+1)
+	results = make([]string, len(allPaths)+2)
 
 	for i, path := range allPaths {
 		go func(path string, i int, results []string) {
