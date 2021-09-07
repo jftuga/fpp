@@ -1,6 +1,6 @@
 project_name: fpp
 build:
-  main: .
+  main: cmd.go
   binary: fpp
   env:
     - CGO_ENABLED=0
